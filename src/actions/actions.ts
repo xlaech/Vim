@@ -11,7 +11,7 @@ import { NumericString } from './../number/numericString';
 import { Position, PositionDiff } from './../motion/position';
 import { PairMatcher } from './../matching/matcher';
 import { QuoteMatcher } from './../matching/quoteMatcher';
-import { TagMatcher } from './../matching/tagMatcher';
+import { MultilineTagMatcher } from './../matching/multilineTagMatcher';
 import { Tab, TabCommand } from './../cmd_line/commands/tab';
 import { Configuration } from './../configuration/configuration';
 import { allowVSCodeToPropagateCursorUpdatesAndReturnThem } from '../util';
@@ -5873,10 +5873,10 @@ abstract class MoveTagMatch extends BaseMovement {
   protected includeTag = false;
 
   public async execAction(position: Position, vimState: VimState): Promise<IMovement> {
-    const text = TextEditor.getLineAt(position).text;
-    const tagMatcher = new TagMatcher(text, position.character);
-    const start = tagMatcher.findOpening(this.includeTag);
-    const end = tagMatcher.findClosing(this.includeTag);
+    const text = TextEditor.getAllText();
+    const tagMatcher = new MultilineTagMatcher(text, position);
+    const start = tagMatcher.findOpeningTag();
+    const end = tagMatcher.findClosingTag(); // todo: include tag
 
     if (start === undefined || end === undefined) {
       return {
@@ -5886,24 +5886,13 @@ abstract class MoveTagMatch extends BaseMovement {
       };
     }
 
-    if (end === start) {
-      return {
-        start:  new Position(position.line, start),
-        stop:   new Position(position.line, start),
-        failed: true,
-      };
-    }
-
-    let startPos = new Position(position.line, start);
-    let endPos = new Position(position.line, end - 1);
-
-    if (position.isBefore(startPos)) {
-      vimState.recordedState.operatorPositionDiff = startPos.subtract(position);
+    if (position.isBefore(start)) {
+      vimState.recordedState.operatorPositionDiff = start.subtract(position);
     }
 
     return {
-      start: startPos,
-      stop: endPos
+      start: start,
+      stop: end
     };
   }
 
